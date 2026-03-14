@@ -116,62 +116,144 @@ This PWL model replaces the more complex Shockley exponential equation with a si
 
 \noindent\textbf{Key insight:} Once we replace the junction diode with this PWL equivalent, the circuit becomes purely resistive and algebraic—no implicit equations needed.
 
-\subsection{Circuit Equations with Ideal Switch}
+\subsection{Circuit Equations with Piecewise Linear Models}
 
-With the ideal switch, the circuit behavior is \textbf{purely algebraic} (no differential equations yet):
+With the piecewise linear MOSFET and diode models, the circuit behavior depends on the switch state. Let us apply Kirchhoff's voltage law (KVL) around the loop containing the inductor, MOSFET, and diode:
 
-\begin{enumerate}
-    \item \textbf{When Q is ON} ($\vgs > \vth$):
-    \[
-        \vds = 0, \quad \text{inductor voltage is } \vdc
-    \]
-    The inductor current $I_L$ increases linearly (we'll address this in the next section).
+\[
+    \vdc = i_L R_L + v_Q + v_D
+\]
 
-    \item \textbf{When Q is OFF} ($\vgs < \vth$):
-    \[
-        \ids = 0, \quad \text{current commutates to diode } D
-    \]
-    The diode conducts, and $\vds = -V_D$ (the negative diode forward drop, which we assume is zero).
-
-    \item \textbf{Body diode forward drop:}
-    \[
-        \text{If diode conducts:} \quad \vds = 0 \quad (\text{ideal diode})
-    \]
-\end{enumerate}
-
-\subsection{The Problem with This Model}
-
-The ideal switch model predicts \textbf{instantaneous} transitions:
+where:
 \begin{itemize}
-    \item Switch turns ON → $\vds$ drops to $0$ instantly
-    \item Switch turns OFF → $\vds$ jumps to $\vdc$ instantly
-    \item No intermediate voltages, no oscillations, no overshoot
+    \item $i_L$ is the inductor current (positive flowing from source through Q or D back to ground)
+    \item $R_L$ is the series resistance of the inductor (parasitic winding resistance)
+    \item $v_Q$ is the voltage across the MOSFET drain-source terminals
+    \item $v_D$ is the voltage across the body diode
 \end{itemize}
 
-But in real hardware, we observe:
+The inductor current $i_L$ flows through one or both devices depending on the switch state.
+
+\subsubsection{Case 1: MOSFET is ON} ($\vgs \geq \vth$)
+
+When the MOSFET conducts, the switch offers near-zero resistance: $\ron \approx 0 \implies v_Q \approx 0$.
+
+The KVL equation becomes:
+\[
+    \vdc = i_L R_L + v_D
+\]
+
+\textbf{Sub-case 1a: Positive current through MOSFET} ($i_L > 0$):
+
+When the inductor current is positive and flowing through the MOSFET, the body diode is reverse-biased and does not conduct:
 \begin{itemize}
-    \item \textbf{Switching transients:} $\vds$ takes time to rise or fall (not instantaneous)
-    \item \textbf{Voltage overshoot:} $\vds$ can exceed $\vdc$ during turn-off
-    \item \textbf{Ringing and oscillations:} High-frequency oscillations appear in $\vds$ and $\ids$
+    \item Ideal diode blocks: $i_d = 0$
+    \item Diode voltage constraint: $v_D \leq V_{bo}$ (no current can flow backward)
+    \item All current flows through Q: $i_L = i_Q$
+    \item Since there is no current through the diode branch, and the MOSFET is ON with $v_Q = 0$:
+    \[
+        v_D = \vdc - i_L R_L
+    \]
 \end{itemize}
 
-These phenomena are \textbf{not captured} by an ideal switch model with zero/infinite resistance.
+For the diode to remain reverse-biased, we need:
+\[
+    v_D = \vdc - i_L R_L < V_{bo}
+\]
 
-\subsection{What's Missing?}
+This condition is typically satisfied when $i_L$ is small.
 
-\boxed{\text{Energy storage}}
+\textbf{Sub-case 1b: Current attempts to reverse (freewheeling through diode)} ($i_L \to 0^-$):
 
-The ideal switch model assumes resistive transitions. But real switching transients involve \textbf{energy flows between electric and magnetic fields}. The inductor $L$ stores magnetic energy, and parasitic capacitances store electric energy.
+When the inductor current reaches zero or tries to reverse direction, the body diode conducts:
+\begin{itemize}
+    \item Ideal diode conducts: $i_d > 0$
+    \item Diode voltage: $v_D = V_{bo} + i_d r_d = V_{bo} + i_L r_d$ (since all current flows through diode: $i_L = i_d$)
+    \item MOSFET voltage: $v_Q = 0$ (still ON)
+    \item KVL gives:
+    \[
+        \vdc = i_L R_L + V_{bo} + i_L r_d = i_L(R_L + r_d) + V_{bo}
+    \]
+    \item Solving for inductor current:
+    \[
+        i_L = \frac{\vdc - V_{bo}}{R_L + r_d}
+    \]
+\end{itemize}
+
+This is an algebraic equation. The inductor current reaches this value when the diode begins to conduct (at the sub-case transition).
+
+\subsubsection{Case 2: MOSFET is OFF} ($\vgs < \vth$)
+
+When the MOSFET is OFF, the gate voltage is below threshold and the switch blocks: $i_Q = 0$ (no current can flow through Q).
+
+All current must commutate to the body diode:
+\begin{itemize}
+    \item Ideal diode conducts: $i_d = i_L$ (all current flows through diode)
+    \item Diode voltage: $v_D = V_{bo} + i_L r_d$
+    \item MOSFET voltage: $v_Q = \vdc - i_L R_L - v_D$
+    \[
+        v_Q = \vdc - i_L R_L - (V_{bo} + i_L r_d) = \vdc - V_{bo} - i_L(R_L + r_d)
+    \]
+\end{itemize}
+
+For positive current flowing through the diode:
+\[
+    i_L = \frac{\vdc - V_{bo}}{R_L + r_d} > 0
+\]
+
+The MOSFET sees a voltage:
+\[
+    v_Q = \vdc - V_{bo} - (R_L + r_d) \cdot \frac{\vdc - V_{bo}}{R_L + r_d} = 0
+\]
+
+Wait, that does not look right. Let me reconsider. When the MOSFET is OFF and the diode conducts with current $i_L > 0$:
+
+\[
+    \vdc = i_L(R_L + r_d) + V_{bo}
+\]
+
+This uniquely determines $i_L$ when given $V_{bo}$, $R_L$, $r_d$, and $\vdc$. However, $i_L$ cannot change instantaneously (due to the inductor), so this algebraic equation describes the \textbf{equilibrium current} that the inductor \textit{approaches}.
+
+\subsection{Summary: Piecewise Behavior}
+
+The circuit exhibits three distinct electrical regimes:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llll}
+\toprule
+\textbf{Regime} & \textbf{Condition} & \textbf{Conducting Path} & \textbf{Key Equation} \\
+\midrule
+ON, forward & $\vgs \geq \vth, \, i_L > 0$ & MOSFET Q conducts & $v_D = \vdc - i_L R_L$ \\
+ON, freewheeling & $\vgs \geq \vth, \, i_L < 0$ & Diode D conducts & $i_L = \dfrac{\vdc - V_{bo}}{R_L + r_d}$ \\
+OFF & $\vgs < \vth$ & Diode D conducts & $i_L = \dfrac{\vdc - V_{bo}}{R_L + r_d}$ \\
+\bottomrule
+\end{tabular}
+\caption{Piecewise linear circuit regimes and equations.}
+\label{tab:pwl_regimes}
+\end{table}
+
+\subsection{What's Still Missing?}
+
+In this piecewise linear model, all equations are \textbf{algebraic} at the equilibrium state. However, the inductor acts like a \textbf{current source with inertia}:
+
+\[
+    v_L = L \frac{di_L}{dt}
+\]
+
+The inductor current cannot change instantaneously, no matter how large the applied voltage. The circuit equations above tell us what \textit{equilibrium} current each regime would prefer, but not how fast the current \textit{changes} to reach that equilibrium.
+
+In the next section, we will introduce $L$ as a \textbf{state variable} and solve the resulting first-order differential equation.
 
 \vspace{1em}
 \noindent\textbf{Key question for the next section:}
 \begin{center}
-    \fbox{\parbox{0.8\textwidth}{
-        If the inductor current cannot change instantly (because $L \frac{di_L}{dt} = V$),
-        what happens to the voltage $\vds$ when the switch turns OFF?
-        How do we model the resulting voltage rise?
+    \fbox{\parbox{0.85\textwidth}{
+        If the switch turns OFF and the inductor current is flowing, what equation governs the rate of change $\dfrac{di_L}{dt}$?
+        How does the inductor voltage $v_L = L \dfrac{di_L}{dt}$ appear in the circuit during commutation?
     }}
 \end{center}
 
 \vspace{1em}
-\noindent\textit{In the next section, we introduce the load inductor as an explicit state variable and solve the resulting differential equation.}
+\noindent\textit{In the next section, we introduce the inductor as a first-order ODE and solve for $i_L(t)$ during switching transients.}

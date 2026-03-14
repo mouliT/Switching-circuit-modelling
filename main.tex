@@ -47,6 +47,91 @@ We begin with a \textbf{Double Pulse Test (DPT)} circuit—one of the simplest c
     \item Gate signal $v_{gs}(t)$ that controls the switch
 \end{itemize}
 
+\subsubsection{DPT Circuit Diagram}
+
+Figure~\ref{fig:dpt_circuit} shows the DPT topology. The inductor is connected in series with the DC supply, and the MOSFET with its body diode forms the switch element. The gate signal controls the MOSFET on/off state.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.5, every node/.style={font=\small}]
+
+    % Define coordinates
+    \coordinate (vdc_top) at (0, 5);
+    \coordinate (vdc_bot) at (0, 0);
+    \coordinate (L_left) at (1.5, 5);
+    \coordinate (L_right) at (3, 5);
+    \coordinate (D_top) at (4.5, 5);
+    \coordinate (D_bot) at (4.5, 3.5);
+    \coordinate (Q_top) at (4.5, 3.5);
+    \coordinate (Q_bot) at (4.5, 1.5);
+    \coordinate (gnd) at (4.5, 0);
+
+    % VDC source (left side)
+    \draw (vdc_top) -- (0, 4.7);
+    \draw[thick] (0, 4.5) circle (0.3);
+    \draw (0, 4.2) -- (vdc_bot);
+    \node[left] at (-0.5, 4.5) {$+$};
+    \node[left] at (-0.5, 3.5) {$V_{DC}$};
+    \node[left] at (-0.5, 2.5) {$800\text{ V}$};
+
+    % Ground symbol
+    \draw (vdc_bot) -- (gnd);
+    \draw (4.5, 0.3) -- (4.5, 0);
+    \draw (4.2, 0) -- (4.8, 0);
+    \draw (4.3, -0.15) -- (4.7, -0.15);
+    \draw (4.4, -0.3) -- (4.6, -0.3);
+
+    % Inductor L with resistance R_L
+    \draw (vdc_top) -- (1.5, 5);
+    % Draw inductor coils
+    \draw[thick] (1.5, 5) arc(0:180:0.25) -- (1.75, 5);
+    \draw[thick] (1.75, 5) arc(0:180:0.25) -- (2, 5);
+    \draw[thick] (2, 5) arc(0:180:0.25) -- (2.25, 5);
+    \draw (2.25, 5) -- (3, 5);
+    \node[above] at (2, 5.3) {$L, R_L$};
+
+    % Current label
+    \draw[->] (1.8, 5.5) -- (2.2, 5.5);
+    \node[above] at (2, 5.7) {$i_L$};
+
+    % Diode D
+    \draw (D_top) -- (D_bot);
+    % Diode triangle and line
+    \draw[thick] (4.3, 4) -- (4.7, 4) -- (4.5, 3.5) -- (4.3, 4);
+    \draw[thick] (4.5, 3.7) -- (4.5, 3.7);
+    \node[right] at (4.8, 3.7) {$D$};
+    \draw[thick] (4.3, 3.5) -- (4.7, 3.5);
+
+    % MOSFET Q
+    \draw (Q_top) -- (Q_bot);
+    % MOSFET symbol (simplified rectangle with terminals)
+    \draw[thick] (4.2, 2.8) -- (4.8, 2.8);  % Gate
+    \draw[thick] (4.2, 2.5) -- (4.8, 2.5);  % Channel
+    \draw[thick] (4.8, 3) -- (4.8, 2.3);    % Drain
+    \draw[thick] (4.2, 3) -- (4.2, 2.3);    % Source
+    \node[right] at (4.9, 2.65) {$Q$};
+
+    % Gate connection
+    \draw (4.2, 2.65) -- (3, 2.65);
+    \draw (3, 2.65) -- (3, 0.5);
+    \node[below] at (3, 0.3) {$v_{gs}(t)$};
+
+    % Voltage annotations
+    \draw[<->] (5.2, 3.5) -- (5.2, 1.5);
+    \node[right] at (5.4, 2.5) {$v_Q$};
+
+    % Return path
+    \draw (Q_bot) -- (gnd);
+
+    % Voltage source symbol for gate signal
+    \draw (3, 0.5) circle (0.2);
+    \draw (2.85, 0.5) -- (3.15, 0.5);
+
+\end{tikzpicture}
+\caption{Double Pulse Test (DPT) circuit topology showing DC source, load inductor with parasitic resistance $R_L$, MOSFET switch $Q$, body diode $D$, gate signal $v_{gs}(t)$, and measured drain-source voltage $v_Q$.}
+\label{fig:dpt_circuit}
+\end{figure}
+
 \subsection{The Piecewise Linear MOSFET Model}
 
 In this first section, we use a \textbf{piecewise linear model} for the switch $Q$ with realistic turn-on/off behavior:

@@ -1,7 +1,199 @@
-\input{preamble.tex}
+\documentclass[11pt, a4paper]{article}
 
-% Sections
+% Packages
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{graphicx}
+
+% Custom commands
+\newcommand{\vds}{V_{DS}}
+\newcommand{\vgs}{V_{GS}}
+\newcommand{\ids}{I_{DS}}
+\newcommand{\vth}{V_{th}}
+\newcommand{\vdc}{V_{DC}}
+\newcommand{\ron}{R_{\text{on}}}
+
+% Title and metadata
+\title{From Ideal Switch to Nonlinear ODE: \\
+A Pedagogical Guide to SiC MOSFET Switching Transients}
+\author{T. Mouli}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
 \section{The Ideal Switch: Starting Point}
-\input{sections/sec1_ideal_switch.tex}
+
+\subsection{The DPT Circuit}
+
+We begin with a \textbf{Double Pulse Test (DPT)} circuit—one of the simplest configurations used to characterize semiconductor switches. The circuit consists of:
+
+\begin{itemize}
+    \item A DC voltage source $\vdc = 800\,\text{ V}$
+    \item A load inductor $L$ with series resistance $R_L$ (parasitic winding resistance)
+    \item A switch $Q$ (our MOSFET)
+    \item A freewheeling diode $D$ (body diode of the switch, modeled as piecewise linear)
+    \item Gate signal $v_{gs}(t)$ that controls the switch
+\end{itemize}
+
+\subsection{The Piecewise Linear MOSFET Model}
+
+In this first section, we use a \textbf{piecewise linear model} for the switch $Q$ with realistic turn-on/off behavior:
+
+\subsubsection{MOSFET Turn-On/Off Logic}
+
+\begin{enumerate}
+    \item \textbf{ON state:} When $\vgs \geq \vth$ (gate voltage reaches or exceeds threshold voltage):
+    \[
+        \ids = \frac{\vds}{\ron}, \quad \text{where } \ron \approx 0
+    \]
+    The switch conducts with near-zero on-resistance. For simplicity, we approximate $\vds \approx 0$ when conducting.
+
+    \item \textbf{OFF state:} When $\vgs < \vth$, the switch is reverse-biased:
+    \[
+        \ids = 0
+    \]
+    No current flows through $Q$. The full supply voltage appears across $\vds$ (minus the diode voltage).
+
+    \item \textbf{No capacitance:} In this first section, the switch has no parasitic energy storage (no $C_{DS}$, no $C_{GS}$, no $C_{GD}$). These will be added later.
+
+    \item \textbf{Threshold voltage:} The switch turns ON when $\vgs$ crosses the threshold:
+    \[
+        \vth \approx 2\text{--}3\,\text{ V} \quad \text{(typical SiC MOSFET)}
+    \]
+\end{enumerate}
+
+\subsubsection{Body Diode: Piecewise Linear Model (PWL)}
+
+The freewheeling diode $D$ is modeled using the \textbf{piecewise linear (PWL)} model with three components:
+\begin{itemize}
+    \item An ideal diode (conducts only in forward direction)
+    \item A built-in voltage source $V_{bo}$ (forward voltage drop threshold)
+    \item A dynamic resistance $r_d$ (diode on-resistance)
+\end{itemize}
+
+The PWL diode equations are:
+
+\begin{enumerate}
+    \item \textbf{Forward biased} ($i_d > 0$, diode conducts):
+    \[
+        v_d = V_{bo} + i_d \cdot r_d
+    \]
+    where $V_{bo}$ is the built-in voltage (e.g., $0.6$--$1.2$ V for SiC) and $r_d$ is the forward resistance.
+
+    \item \textbf{Reverse biased} ($i_d = 0$, diode blocks):
+    \[
+        i_d = 0, \quad v_d < V_{bo}
+    \]
+    No current flows. The voltage $v_d$ is determined by the circuit (can be negative).
+\end{enumerate}
+
+This PWL model replaces the more complex Shockley exponential equation with a simple piecewise linear relationship that is easy to solve analytically.
+
+\subsection{Circuit Equations with Piecewise Linear Models}
+
+With the piecewise linear MOSFET and diode models, the circuit behavior depends on the switch state. Let us apply Kirchhoff's voltage law (KVL) around the loop containing the inductor, MOSFET, and diode:
+
+\[
+    V_{DC} = i_L R_L + v_Q + v_d
+\]
+
+where:
+\begin{itemize}
+    \item $i_L$ is the inductor current
+    \item $R_L$ is the series resistance of the inductor
+    \item $v_Q$ is the voltage across the MOSFET drain-source terminals
+    \item $v_d$ is the voltage across the body diode
+\end{itemize}
+
+\subsubsection{Case 1: MOSFET is ON} ($\vgs \geq \vth$)
+
+When the MOSFET conducts, the switch offers near-zero resistance: $\ron \approx 0 \implies v_Q \approx 0$.
+
+The KVL equation becomes:
+\[
+    V_{DC} = i_L R_L + v_d
+\]
+
+\textbf{Sub-case 1a: Positive current through MOSFET} ($i_L > 0$):
+
+When the inductor current is positive and flowing through the MOSFET, the body diode is reverse-biased:
+\begin{itemize}
+    \item Ideal diode blocks: $i_d = 0$
+    \item All current flows through Q: $i_L = i_Q$
+    \item Diode voltage: $v_d = V_{DC} - i_L R_L$
+\end{itemize}
+
+\textbf{Sub-case 1b: Current attempts to reverse (freewheeling through diode)}:
+
+When the inductor current reaches zero or tries to reverse, the body diode conducts:
+\begin{itemize}
+    \item Ideal diode conducts: $i_d > 0$
+    \item Diode voltage: $v_d = V_{bo} + i_L r_d$
+    \item KVL gives: $V_{DC} = i_L R_L + V_{bo} + i_L r_d = i_L(R_L + r_d) + V_{bo}$
+    \item Solving: $i_L = \dfrac{V_{DC} - V_{bo}}{R_L + r_d}$
+\end{itemize}
+
+\subsubsection{Case 2: MOSFET is OFF} ($\vgs < \vth$)
+
+When the MOSFET is OFF, all current must flow through the body diode:
+\begin{itemize}
+    \item Ideal diode conducts: $i_d = i_L$
+    \item Diode voltage: $v_d = V_{bo} + i_L r_d$
+    \item KVL gives: $V_{DC} = i_L(R_L + r_d) + V_{bo}$
+    \item Current: $i_L = \dfrac{V_{DC} - V_{bo}}{R_L + r_d}$
+\end{itemize}
+
+\subsection{Summary: Piecewise Behavior}
+
+The circuit exhibits three distinct electrical regimes:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Regime} & \textbf{Condition} & \textbf{Conducting Path} \\
+\midrule
+ON, forward & $\vgs \geq \vth$, $i_L > 0$ & MOSFET Q conducts \\
+ON, freewheeling & $\vgs \geq \vth$, $i_L < 0$ & Diode D conducts \\
+OFF & $\vgs < \vth$ & Diode D conducts \\
+\bottomrule
+\end{tabular}
+\caption{Piecewise linear circuit regimes.}
+\end{table}
+
+\subsection{What's Still Missing?}
+
+In this piecewise linear model, all equations are algebraic. However, the inductor has \textbf{inertia}:
+
+\[
+    v_L = L \frac{di_L}{dt}
+\]
+
+The inductor current cannot change instantaneously. The circuit equations above describe equilibrium states, but not how the current changes with time.
+
+\vspace{1em}
+\noindent\textbf{Key question for the next section:}
+
+\framebox{
+\parbox{0.85\textwidth}{
+If the switch turns OFF and the inductor current is flowing, what equation governs the rate of change $\dfrac{di_L}{dt}$? How does the inductor voltage appear in the circuit during switching?
+}
+}
+
+\vspace{1em}
+\noindent\textit{In the next section, we introduce the inductor as a first-order ODE and solve for $i_L(t)$ during switching transients.}
 
 \end{document}

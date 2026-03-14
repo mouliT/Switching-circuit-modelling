@@ -54,48 +54,63 @@ Figure~\ref{fig:dpt_circuit} shows the DPT topology. The inductor is connected i
 
 \begin{figure}[h]
 \centering
-\begin{circuitikz}[scale=1.3, american voltages, every node/.style={font=\small}]
+\begin{circuitikz}[scale=1.1, american voltages, american currents,
+    every node/.style={font=\small}]
 
-    % Voltage source at bottom left
-    \draw (0, 0) node[battery1, l_={$V_{DC}$}, l={$800\text{ V}$}] (vdc) {};
+    % ── DC Voltage Source: left vertical branch, + at top ─────
+    \draw (0,0) to[V, v^<=$V_{DC}$, a=800\,V] (0,5);
 
-    % Top rail from VDC: R_L -> L -> Diode branch point
-    \draw (vdc.north) to[short] (0, 5);
-    \draw (0, 5) to[R, l_=$R_L$] (2, 5);
-    \draw (2, 5) to[cute inductor, l_=$L$] (4, 5);
+    % ── Top rail: DC+ → R_L → L → switch node (SW) ───────────
+    \draw (0,5) to[R, l=$R_L$, f>^=$i_L$] (3,5)
+                to[cute inductor, l=$L$]  (6,5);
 
-    % Mark current path
-    \draw (0.5, 5.5) node[above, blue, font=\Large] {$i_L$};
-    \draw[blue, ->, thick] (0.5, 5.3) -- (0.5, 5);
+    % ── Bottom rail (ground/DC−) ───────────────────────────────
+    \draw (0,0) to[short] (6,0);
 
-    % Right branch: Diode D parallel with MOSFET Q
-    \draw (4, 5) to[diode, l_={$D$}] (4, 2);
+    % ── MOSFET Q: bottom switch
+    %    drain = switch node (6,5), source = ground (6,0)
+    %    nmos placed with drain anchor at (6,5), gate faces left
+    \draw (6,5) node[nmos, anchor=drain, xscale=-1] (Q) {};
+    \draw (Q.source) to[short] (6,0);
+    \node[right=4pt] at (Q.base) {$Q$};
 
-    % MOSFET Q: Drain at top, Source at bottom
-    \draw (4, 2) to[short] (4, 1.8);
-    \draw (4, 1.8) node[nmos, anchor=drain, label={[right]:$Q$}] (Q1) {};
+    % ── Body diode D in anti-parallel with Q ──────────────────
+    %    Anode at source node (6,0), cathode at drain node (6,5)
+    %    Placed left of Q in the same right branch
+    \draw (5.0,0) to[diode, l_=$D$] (5.0,5);
+    % Tie diode terminals to the main power rails
+    \draw (5.0,5) to[short] (6,5);
+    \draw (5.0,0) to[short] (6,0);
 
-    % Source to ground rail
-    \draw (Q1.source) to[short] (4, 0.5);
-    \draw (4, 0.5) to[short] (0, 0.5);
+    % ── Current direction label in top rail ───────────────────
+    \node[above] at (1.5,5) {\textcolor{blue}{$\longrightarrow\;i_L$}};
 
-    % Ground connection
-    \draw (vdc.south) to[short] (0, 0.5);
+    % ── Gate drive loop ───────────────────────────────────────
+    %    Gate → v_gs source → source of Q (ground)
+    \draw (Q.gate) to[short]              (3.5, 2.4)
+                   to[V, l_=$v_{gs}(t)$] (3.5, 0)
+                   to[short]             (6,   0);
 
-    % Gate drive circuit (separate from power loop)
-    \draw (3.5, 1.2) to[short] (2.5, 1.2);
-    \draw (2.5, 1.2) to[V, l_={$v_{gs}(t)$}] (2.5, 0.5);
-    \draw (2.5, 0.5) to[short] (0, 0.5);
+    % ── v_Q: drain–source voltage annotation ──────────────────
+    \draw[red, thick, <->] (7.2,5) -- (7.2,0)
+        node[midway, right, red, font=\normalsize] {$v_Q$};
+    \draw[red, dashed, thin] (6,5) -- (7.2,5);
+    \draw[red, dashed, thin] (6,0) -- (7.2,0);
 
-    % Gate to MOSFET
-    \draw (Q1.gate) to[short] (2.5, 1.2);
-
-    % Voltage measurement: V_Q across MOSFET drain-source
-    \draw[red, <->, thick] (5.2, 2) -- (5.2, 0.5);
-    \node[right, red, font=\large] at (5.4, 1.25) {$v_Q$};
+    % ── Node labels ───────────────────────────────────────────
+    \node[above right] at (6,5) {\footnotesize SW};
+    \node[below]       at (3,0) {\footnotesize GND};
 
 \end{circuitikz}
-\caption{Double Pulse Test (DPT) circuit topology. The circuit consists of: (1) DC voltage source $V_{DC} = 800$ V on the left, (2) load inductor $L$ with parasitic series resistance $R_L$ in the main current path $i_L$, (3) body diode $D$ in parallel with the MOSFET switch $Q$, (4) gate signal source $v_{gs}(t)$ in a separate control loop, and (5) drain-source voltage $v_Q$ measured across the switch.}
+\caption{Double Pulse Test (DPT) circuit topology.
+    A DC source $V_{DC} = 800$\,V (left branch) drives current $i_L$
+    through the series load $R_L$--$L$ (top rail) into the switch node (SW).
+    The MOSFET $Q$ (bottom switch: drain at SW, source at GND) is driven by
+    gate signal $v_{gs}(t)$.
+    The body diode $D$ is modelled as a piecewise-linear element in
+    \textit{anti-parallel} with $Q$ (anode at source, cathode at drain):
+    it provides the freewheeling path for $i_L$ whenever $Q$ is off.
+    Drain--source voltage $v_Q$ is indicated on the right.}
 \label{fig:dpt_circuit}
 \end{figure}
 
@@ -247,5 +262,216 @@ If the switch turns OFF and the inductor current is flowing, what equation gover
 
 \vspace{1em}
 \noindent\textit{In the next section, we introduce the inductor as a first-order ODE and solve for $i_L(t)$ during switching transients.}
+
+% ============================================================
+\section{The Inductor as a First-Order ODE}
+% ============================================================
+
+\subsection{Why the Inductor Matters}
+
+In the previous section, the circuit equations were purely algebraic—we simply looked up which regime the switch was in and read off the voltages and currents. But the load inductor $L$ stores magnetic energy and imposes a fundamental constraint:
+
+\[
+    v_L(t) = L\,\frac{di_L}{dt}
+\]
+
+This single equation transforms every switching event from an instantaneous jump into a \emph{continuous transient}. The inductor current cannot change instantaneously; instead, it ramps up or down at a rate set by the net voltage across $L$.
+
+\subsection{KVL Around the Main Loop}
+
+Apply Kirchhoff's Voltage Law (KVL) around the main power loop. The sign convention is:
+\begin{itemize}
+    \item $V_{DC}$ is the driving source (positive, left side of loop).
+    \item $i_L R_L$ is the resistive drop across the winding resistance.
+    \item $v_Q$ is the voltage across the MOSFET drain–source terminals.
+    \item $v_d$ is the voltage across the body diode.
+    \item $v_L = L\,\dfrac{di_L}{dt}$ is the volt–second balance across the inductor.
+\end{itemize}
+
+The complete KVL equation is:
+\[
+    V_{DC} = i_L R_L + L\,\frac{di_L}{dt} + v_Q + v_d
+\]
+
+Rearranging to isolate the derivative:
+\[
+    \frac{di_L}{dt} = \frac{1}{L}\Bigl(V_{DC} - i_L R_L - v_Q - v_d\Bigr)
+\]
+
+This is a \textbf{first-order linear ODE} in $i_L(t)$. The right-hand side changes depending on which switch state (regime) is active.
+
+\subsection{ODE in Each Switching Regime}
+
+\subsubsection{Regime A: MOSFET ON, Diode Blocked}
+
+When $v_{gs} \geq v_{th}$ and $i_L > 0$:
+\[
+    v_Q = 0, \quad i_d = 0, \quad v_d = \underbrace{V_{DC} - i_L R_L}_{\text{from sub-case 1a above}}
+\]
+
+Wait—if the diode is blocked, $v_d$ is \emph{not} fixed by the PWL equation; instead it floats to satisfy KVL. The conducting element is the MOSFET alone:
+
+\[
+    V_{DC} = i_L R_L + L\,\frac{di_L}{dt} + 0
+\]
+\[
+    \boxed{\frac{di_L}{dt} = \frac{V_{DC} - i_L R_L}{L}}
+\]
+
+This is a first-order linear ODE with the standard form $\dfrac{di_L}{dt} + \dfrac{R_L}{L}\,i_L = \dfrac{V_{DC}}{L}$.
+
+\subsubsection{Regime B: MOSFET OFF, Diode Conducting (Freewheeling)}
+
+When $v_{gs} < v_{th}$ and $i_L > 0$, the inductor forces current through the body diode (the MOSFET is OFF so $i_Q = 0$, $v_Q = V_{DC} - v_d - i_L R_L$ is absorbed by the circuit):
+
+\[
+    v_d = V_{bo} + i_L\,r_d
+\]
+
+The KVL (with $v_Q$ floating and the diode in the loop) gives:
+\[
+    0 = i_L R_L + L\,\frac{di_L}{dt} + (V_{bo} + i_L\,r_d)
+\]
+\[
+    \boxed{\frac{di_L}{dt} = -\frac{(R_L + r_d)}{L}\,i_L - \frac{V_{bo}}{L}}
+\]
+
+Here $V_{DC}$ does \emph{not} appear because the DC supply is disconnected from the freewheeling path when $Q$ is OFF—the energy circulates through $L$, $R_L$, and $D$ only.
+
+\subsection{Analytical Solutions}
+
+Both ODEs share the same structure:
+\[
+    \frac{di_L}{dt} + \frac{R_{\text{eff}}}{L}\,i_L = \frac{V_{\text{eff}}}{L}
+\]
+
+where $R_{\text{eff}}$ and $V_{\text{eff}}$ depend on the regime. The general solution is:
+
+\[
+    i_L(t) = i_{L,\infty} + \bigl(i_{L,0} - i_{L,\infty}\bigr)\,e^{-t/\tau}
+\]
+
+with the time constant $\tau = L / R_{\text{eff}}$ and the steady-state asymptote $i_{L,\infty} = V_{\text{eff}} / R_{\text{eff}}$.
+
+\subsubsection{Regime A — Turn-On Transient}
+
+\begin{align*}
+    R_{\text{eff}} &= R_L, \quad V_{\text{eff}} = V_{DC}\\
+    \tau_{\text{on}} &= \frac{L}{R_L}\\
+    i_{L,\infty} &= \frac{V_{DC}}{R_L}
+\end{align*}
+
+Starting from initial current $i_{L,0}$ (typically zero for the first pulse):
+\[
+    i_L(t) = \frac{V_{DC}}{R_L}\Bigl(1 - e^{-t/\tau_{\text{on}}}\Bigr), \qquad 0 \leq t \leq t_1
+\]
+
+The current ramps upward toward $V_{DC}/R_L$. Because $R_L$ is very small (milliohms), $\tau_{\text{on}} = L/R_L$ is large (milliseconds), so within a short pulse duration $t_1 \ll \tau_{\text{on}}$ the ramp is nearly linear:
+\[
+    i_L(t) \approx \frac{V_{DC}}{L}\,t \qquad \text{(linear approximation for } t \ll \tau_{\text{on}}\text{)}
+\]
+
+\subsubsection{Regime B — Turn-Off (Freewheeling) Transient}
+
+\begin{align*}
+    R_{\text{eff}} &= R_L + r_d, \quad V_{\text{eff}} = -V_{bo}\\
+    \tau_{\text{off}} &= \frac{L}{R_L + r_d}\\
+    i_{L,\infty} &= -\frac{V_{bo}}{R_L + r_d}
+\end{align*}
+
+Starting from the peak current $i_{L,\text{peak}}$ at turn-off:
+\[
+    i_L(t) = \left(i_{L,\text{peak}} + \frac{V_{bo}}{R_L + r_d}\right)e^{-t/\tau_{\text{off}}} - \frac{V_{bo}}{R_L + r_d}
+\]
+
+The current decays exponentially. In practice $i_L$ is forced to zero by the circuit when the second pulse arrives; the steady-state asymptote $-V_{bo}/(R_L+r_d)$ is never reached.
+
+\subsection{Numerical Example}
+
+Consider the following DPT parameters:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
+\midrule
+DC bus voltage      & $V_{DC}$      & 800 V  \\
+Load inductance     & $L$           & 500 $\mu$H \\
+Winding resistance  & $R_L$         & 10 m$\Omega$ \\
+Diode forward drop  & $V_{bo}$      & 1.2 V \\
+Diode resistance    & $r_d$         & 5 m$\Omega$ \\
+First pulse width   & $t_1$         & 10 $\mu$s \\
+\bottomrule
+\end{tabular}
+\caption{Numerical parameters for the first-order ODE example.}
+\label{tab:ode_params}
+\end{table}
+
+\textbf{Step 1: Time constants.}
+\[
+    \tau_{\text{on}} = \frac{500\times10^{-6}}{10\times10^{-3}} = 50\,\text{ms}, \qquad
+    \tau_{\text{off}} = \frac{500\times10^{-6}}{15\times10^{-3}} \approx 33.3\,\text{ms}
+\]
+
+Since $t_1 = 10\,\mu\text{s} \ll \tau_{\text{on}}$, the linear approximation is valid.
+
+\textbf{Step 2: Peak current after first pulse.}
+\[
+    i_{L,\text{peak}} \approx \frac{V_{DC}}{L}\,t_1 = \frac{800}{500\times10^{-6}}\times10\times10^{-6} = 16\,\text{A}
+\]
+
+\textbf{Step 3: Freewheeling decay.}
+
+After turn-off, the current decays from 16 A. The time for it to reach, say, half its value:
+\[
+    t_{1/2} = \tau_{\text{off}}\ln 2 \approx 33.3\,\text{ms} \times 0.693 \approx 23\,\text{ms}
+\]
+
+This is much longer than typical pulse periods, confirming that $i_L$ barely decays between pulses in a DPT—exactly why two pulses are needed to pre-charge the inductor before the main switching event.
+
+\subsection{What the ODE Captures — and What It Misses}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{p{4.5cm}p{4.5cm}p{4.5cm}}
+\toprule
+\textbf{Captured} & \textbf{Assumed} & \textbf{Missing} \\
+\midrule
+Exponential ramp of $i_L$ & Ideal MOSFET ($v_Q = 0$ when ON) & Gate charge and $V_{GS}$ dynamics \\
+Freewheeling current decay & PWL diode model & Parasitic drain–source capacitance $C_{DS}$ \\
+Time constant $\tau = L/R$ & No reverse recovery & Gate–drain coupling ($C_{GD}$) \\
+Peak current calculation & Zero switching time & Voltage overshoot on $v_{DS}$ \\
+\bottomrule
+\end{tabular}
+\caption{Summary of what the first-order inductor ODE captures and what remains to be modelled.}
+\label{tab:ode_summary}
+\end{table}
+
+\noindent In particular, notice that \emph{when} the switch turns ON or OFF, the current changes happen with no voltage transient: $v_{DS}$ snaps from $V_{DC}$ to $0$ (or vice versa) instantaneously. Real SiC MOSFETs exhibit \textbf{voltage and current overshoot} during switching, arising from parasitic capacitances. These effects appear only when we add $C_{DS}$, $C_{GD}$, and gate dynamics in later sections.
+
+\subsection{Key Takeaway}
+
+\begin{center}
+\fbox{\parbox{0.8\textwidth}{%
+\textbf{The inductor turns every switching event into a differential equation.}\\
+Its current evolves in time as $i_L(t) = i_{L,\infty} + (i_{L,0} - i_{L,\infty})\,e^{-t/\tau}$,
+with time constant $\tau = L/R_{\text{eff}}$. As long as the switch models are ideal
+(no capacitances, no gate delay), this ODE has a closed-form analytical solution.
+}}
+\end{center}
+
+\vspace{1em}
+\noindent\textbf{Key question for the next section:}
+
+\framebox{
+\parbox{0.85\textwidth}{
+In the freewheeling turn-off transient, we assumed the body diode turns on \emph{instantaneously} and carries all of $i_L$. But real diodes have a \textbf{reverse-recovery charge} $Q_{rr}$: before a diode can block, it must first expel stored minority carriers, creating a brief negative current spike. How does this modify the turn-on waveform of the MOSFET---and what does it imply for switching losses?
+}
+}
+
+\vspace{1em}
+\noindent\textit{In the next section, we model the body diode reverse recovery using a charge-based approach and incorporate it into the inductor ODE to capture the current overshoot at turn-on.}
 
 \end{document}
